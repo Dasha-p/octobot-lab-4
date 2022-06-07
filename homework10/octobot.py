@@ -11,7 +11,8 @@ korobochka = []
 
 def convert_date(date: str = "01/01/00"):
     """ Конвертируем дату из строки в datetime """
-    return datetime.strptime(date, "%d.%m.%Y")
+    date += ' 23:59'
+    return datetime.strptime(date, "%d.%m.%Y %H:%M")
 
 
 def connect_table(message):
@@ -77,6 +78,8 @@ def choose_action(message):
             for ddl in a.row_values(i)[2:]:
                 if convert_date(ddl) <= week and convert_date(ddl) >= today:
                     mes += f"{a.cell(i, 1).value}: {ddl}\n"
+        if mes == "":
+            mes += "На этой неделе дедлайнов нет!"
         bot.send_message(message.chat.id, mes)
         start(message)
 
@@ -149,18 +152,24 @@ def add_subject_deadline2(message):
         inf = bot.send_message(message.chat.id, "Неправильный формат!\nВведите дату в формате 'dd.mm.yyyy'")
         bot.register_next_step_handler(inf, add_subject_deadline2)
     else:
-        if convert_date(message.text) < datetime.today():
-            bot.send_message(message.chat.id, "Ты профукал этот дедлайн давай новый!")
-        else:
-            a, b, c = access_current_sheet()
-            row = a.find(f"{korobochka[0]}").row
-            n = len(a.row_values(row))
-            a.update_cell(row, n+1, message.text)
-            if not a.cell(1, n+1).value:
-                num = int(a.cell(1, n).value)
-                a.update_cell(1, n + 1, num+1)
-            bot.send_message(message.chat.id, "Изменено!")
-            start(message)
+        try:
+            if convert_date(message.text) < datetime.today():
+                bot.send_message(message.chat.id, "Ты профукал этот дедлайн давай новый!")
+            else:
+                a, b, c = access_current_sheet()
+                row = a.find(f"{korobochka[0]}").row
+                n = len(a.row_values(row))
+                a.update_cell(row, n+1, message.text)
+                if not a.cell(1, n+1).value:
+                    num = int(a.cell(1, n).value)
+                    a.update_cell(1, n + 1, num+1)
+                bot.send_message(message.chat.id, "Изменено!")
+                start(message)
+        except:
+            inf = bot.send_message(message.chat.id,
+                                   "Стоп стоп стоп!\nВведите <b>существующую</b> дату в формате 'dd.mm.yyyy'",
+                                   parse_mode="HTML")
+            bot.register_next_step_handler(inf, add_subject_deadline2)
 
 
 def update_subject_deadline(message):
